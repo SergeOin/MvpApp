@@ -1,0 +1,205 @@
+import React, {useContext, useState} from "react"
+import {Platform} from "react-native";
+import styled from "styled-components";
+import Text from '../components/Text'
+import {AntDesign} from '@expo/vector-icons'
+import * as Permissions from 'expo-permissions'
+import * as ImagePicker from 'expo-image-picker'
+import {FirebaseContext} from "../context/FirebaseContext";
+import {UserContext} from "../context/UserContext";
+
+
+export default SignUpScreen = ({navigation}) => {
+    const [firstname, setFirstname] = useState();
+    const [lastname, setLastname] = useState();
+    const [email, setEmail] = useState();
+    const [password, setPassword] = useState();
+    const [loading, setLoading] = useState(false);
+    const [profilePhoto, setProfilePhoto] = useState();
+    const firebase = useContext(FirebaseContext)
+    const [_, setUser] = useContext(UserContext)
+
+    const getPermission =async () => {
+        if (Platform.OS !== 'web'){
+           const {status} = await Permissions.askAsync(Permissions.CAMERA_ROLL);
+           return status;
+        }
+    };
+
+    const pickImage = async () => {
+        try {
+            let result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.5
+            })
+
+            if (!result.cancelled){
+                setProfilePhoto(result.uri)
+            }
+
+        } catch (error){
+            console.log("Error @pickImage: ", error)
+        }
+    }
+
+    const addProfilePhoto = async () => {
+        const status = await getPermission()
+        if (status !== "granted"){
+            alert("Vous devez autoriser l'application à accéder à votre appareil photo");
+            return;
+        }
+        await pickImage()
+    };
+
+    const signUp = async () => {
+        setLoading(true)
+
+        const user = {firstname, lastname, email, password, profilePhoto}
+
+        try {
+            const createdUser = await firebase.createUser(user)
+            setUser({ ...createdUser, isLoggedIn: true })
+        } catch (error) {
+            console.log("Error @signUp: ", error)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    return (
+        <Container>
+            <Main>
+                <Text title light center>
+                    Rejoindre le MVH.
+                </Text>
+            </Main>
+
+            <ProfilePhotoContainer onPress={addProfilePhoto}>
+                {profilePhoto ? (
+                    <ProfilePhoto source={{ uri: profilePhoto}} />
+                ) : (
+                    <DefaultProfilePhoto>
+                        <AntDesign name="plus" size={24} color="#ffffff" />
+                    </DefaultProfilePhoto>
+                )}
+            </ProfilePhotoContainer>
+
+            <Auth>
+                <AuthContainer>
+                    <AuthTitle>Votre Prénom</AuthTitle>
+                    <AuthField autoCapitalize="none" autoCorrect={false} autoFocus={true} onChangeText={(firstname) => setFirstname(firstname.trim())} value={firstname}/>
+                </AuthContainer>
+
+                <AuthContainer>
+                    <AuthTitle>Votre Nom</AuthTitle>
+                    <AuthField autoCapitalize="none" autoCorrect={false} autoFocus={true} onChangeText={(lastname) => setLastname(lastname.trim())} value={lastname}/>
+                </AuthContainer>
+
+                <AuthContainer>
+                    <AuthTitle>Votre Email</AuthTitle>
+                    <AuthField autoCapitalize="none" autoCompleteType="email" autoCorrect={false} autoFocus={true} keyboardType="email-address" onChangeText={(email) => setEmail(email.trim())} value={email}/>
+                </AuthContainer>
+
+                <AuthContainer>
+                    <AuthTitle>Votre mot de passe</AuthTitle>
+                    <AuthField autoCapitalize="none" autoCompleteType="password" autoCorrect={false} secureTextEntry={true} onChangeText={(password) => setPassword(password.trim())} value={password}/>
+                </AuthContainer>
+            </Auth>
+
+            <SignUpContainer onPress={signUp} disabled={loading}>
+                { Loading ? (
+                    <Loading />
+                ) : (
+                    <Text bold color="#ffffff">Inscrivez-vous</Text>
+                )}
+            </SignUpContainer>
+
+            <SignIn onPress={() => navigation.navigate("SignIn")}>
+                <Text small center>
+                    Vous avez déjà un compte ?{" "}
+                    <Text bold center color="#FC5B37">Connectez-Vous</Text>
+                </Text>
+            </SignIn>
+
+            <StatusBar barStyle="light-content" />
+        </Container>
+    );
+}
+
+const Container = styled.View`
+    flex: 1;
+`;
+
+const HeaderGraphic = styled.View`
+    position: absolute;
+    width: 100%;
+    top: -180px;
+    z-index: -100;
+`;
+
+const Main = styled.View`
+    margin-top: 15px;
+`;
+
+const ProfilePhotoContainer = styled.TouchableOpacity`
+    background-color: #061333;
+    width: 80px;
+    height: 80px;
+    border-radius: 40px;
+    align-self: center;
+    margin-top: 16px;
+    overflow: hidden;
+`;
+
+const DefaultProfilePhoto = styled.View`
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+`;
+
+const ProfilePhoto = styled.Image`
+    flex: 1;
+`;
+
+const Auth = styled.View`
+    margin: 64px 32px 32px;
+`;
+
+const AuthContainer = styled.View`
+    margin-bottom: 32px
+`;
+
+const AuthTitle = styled(Text)`
+    color: #061333;
+    font-size: 12px;
+    text-transform: uppercase;
+    font-weight: 300;
+`;
+
+const AuthField = styled.TextInput`
+    border-bottom-color: #061333;
+    border-bottom-width: 0.5px;
+    height: 48px;
+`;
+
+const Loading = styled.ActivityIndicator.attrs(props => ({
+    color: "#ffffff",
+    size: "small",
+}))``;
+
+const SignUpContainer = styled.TouchableOpacity`
+    margin: 0 32px;
+    height: 48px;
+    align-items: center;
+    justify-content: center;
+    background-color: #FC5B37;
+    border-radius: 6px;
+`;
+
+const SignIn = styled.TouchableOpacity`
+    margin-top: 16px;
+`;
+
+const StatusBar = styled.StatusBar``;
